@@ -5,4 +5,4 @@ pages_build_output_dir = "."
 # 创建 KV 后把 id 填进来（见 DEPLOY.md）
 [[kv_namespaces]]
 binding = "HABIT_STATE"
-id = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
+id = "a1dbf08920e34076856ee32b27f136fb"
