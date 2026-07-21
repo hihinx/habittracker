@@ -1,10 +1,10 @@
 {
-  "name": "habit-tracker",
+  "name": "habittracker",
   "private": true,
   "scripts": {
-    "deploy": "wrangler pages deploy . --project-name=habit-tracker"
+    "deploy": "wrangler pages deploy . --project-name=habittracker"
   },
   "devDependencies": {
-    "wrangler": "^3.99.0"
+    "wrangler": "^3.114.0"
   }
 }
