@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="zh-Hans">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#16a34a" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta http-equiv="Cache-Control" content="no-cache" />
+    <title>21天养成游戏</title>
+    <link rel="manifest" href="./manifest.json" />
+    <link rel="stylesheet" href="./css/app.css?v=23" />
+  </head>
+  <body>
+    <div id="loadStatus" class="load-status">加载中…</div>
+    <div class="app-shell">
+    <header class="app-header">
+      <h1>21天养成游戏</h1>
+      <p>自律是自由的伙伴～</p>
+      <div class="stats-bar" id="statsBar"></div>
+    </header>
+
+    <main>
+      <nav class="tab-nav">
+        <button class="tab-btn active" data-tab="home">今日聚焦</button>
+        <button class="tab-btn" data-tab="pool">习惯池</button>
+        <button class="tab-btn" data-tab="settings">设置</button>
+      </nav>
+      <div id="tabContent"></div>
+    </main>
+
+    </div><!-- .app-shell -->
+
+    <button class="fab-add" id="fabAdd" title="添加习惯" aria-label="添加习惯">+</button>
+
+    <div class="confetti" id="confetti"></div>
+    <div class="toast" id="toast"></div>
+
+    <!-- 打卡庆祝 -->
+    <div class="modal-backdrop" id="celebrateModal">
+      <div class="modal">
+        <div class="modal-emoji" id="celebrateEmoji">🌱</div>
+        <h2 id="celebrateTitle">打卡成功！</h2>
+        <p id="celebrateMsg"></p>
+        <div class="modal-actions">
+          <button class="btn btn-primary" id="closeCelebrate">太棒了！</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 暂时放弃确认 -->
+    <div class="modal-backdrop" id="abandonModal">
+      <div class="modal" style="text-align:left">
+        <h2 style="text-align:center">暂时放弃？</h2>
+        <p id="abandonText"></p>
+        <div class="modal-actions">
+          <button class="btn" id="cancelAbandon">继续养成</button>
+          <button class="btn" id="confirmAbandon" style="color:var(--muted)">确认暂时放弃</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 挑战失效 -->
+    <div class="modal-backdrop" id="failModal">
+      <div class="modal">
+        <div class="modal-emoji">😢</div>
+        <h2 id="failTitle">挑战失效</h2>
+        <p id="failMsg"></p>
+        <div class="modal-actions">
+          <button class="btn btn-primary" id="closeFail">知道了</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 昨日未打卡挽救 -->
+    <div class="modal-backdrop" id="rescueModal">
+      <div class="modal">
+        <div class="modal-emoji">⚠️</div>
+        <h2>昨日未打卡</h2>
+        <p id="rescueMsg"></p>
+        <div class="modal-actions">
+          <button class="btn btn-primary" id="rescueMulligan">使用补签挽救</button>
+          <button class="btn" id="rescueSkip">下次打开将失效</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 孵化 / 播种仪式 -->
+    <div class="modal-backdrop" id="hatchModal">
+      <div class="modal hatch-modal">
+        <div class="modal-emoji hatch-emoji" id="hatchEmoji">🥚</div>
+        <h2 id="hatchTitle">你获得了新伙伴！</h2>
+        <p id="hatchMsg">连续打卡 21 天，帮它完成进化吧～</p>
+        <div class="hatch-stages" id="hatchStages"></div>
+        <p class="hatch-habit" id="hatchHabit"></p>
+        <div class="modal-actions">
+          <button class="btn btn-primary" id="closeHatch">开始养成</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 添加习惯 -->
+    <div class="modal-backdrop" id="addModal">
+      <div class="modal" style="text-align:left;max-width:420px">
+        <h2 style="text-align:center;margin-bottom:16px">添加习惯</h2>
+        <div class="form-group">
+          <label>习惯类型</label>
+          <select id="habitType">
+            <option value="daily">21Daily · 连续21天</option>
+            <option value="general">General · 期限内指定次数</option>
+          </select>
+        </div>
+        <div class="form-group" id="generalGoalFields" hidden>
+          <label>目标</label>
+          <div class="goal-fields">
+            <div class="goal-field">
+              <span class="goal-field-label">期限（天）</span>
+              <input type="number" id="habitGoalDays" min="1" value="30" />
+            </div>
+            <div class="goal-field">
+              <span class="goal-field-label">完成（次）</span>
+              <input type="number" id="habitGoalCheckins" min="1" value="10" />
+            </div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>名称</label>
+          <input type="text" id="habitName" placeholder="例如：阅读 30 分钟" />
+        </div>
+        <div class="form-group">
+          <label>自定义文案（可选）</label>
+          <textarea id="habitDesc" placeholder="一句激励自己的话……"></textarea>
+        </div>
+        <div class="form-group">
+          <label>图标</label>
+          <div class="icon-picker" id="addIconPicker"></div>
+        </div>
+        <div class="modal-actions">
+          <button class="btn" id="cancelAdd">取消</button>
+          <button class="btn btn-primary" id="saveHabit">加入习惯池</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 编辑习惯 -->
+    <div class="modal-backdrop" id="editModal">
+      <div class="modal" style="text-align:left;max-width:420px">
+        <h2 style="text-align:center;margin-bottom:16px">编辑习惯</h2>
+        <input type="hidden" id="editHabitId" />
+        <div class="form-group">
+          <label>习惯类型</label>
+          <select id="editHabitType">
+            <option value="daily">21Daily</option>
+            <option value="general">General · 期限内指定次数</option>
+          </select>
+        </div>
+        <div class="form-group" id="editGeneralGoalFields" hidden>
+          <label>目标</label>
+          <div class="goal-fields">
+            <div class="goal-field">
+              <span class="goal-field-label">期限（天）</span>
+              <input type="number" id="editGoalDays" min="1" value="30" />
+            </div>
+            <div class="goal-field">
+              <span class="goal-field-label">完成（次）</span>
+              <input type="number" id="editGoalCheckins" min="1" value="10" />
+            </div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>名称</label>
+          <input type="text" id="editHabitName" />
+        </div>
+        <div class="form-group">
+          <label>自定义文案</label>
+          <textarea id="editHabitDesc"></textarea>
+        </div>
+        <div class="form-group">
+          <label>图标</label>
+          <div class="icon-picker" id="editIconPicker"></div>
+        </div>
+        <div class="modal-actions modal-actions-edit">
+          <button class="btn btn-danger" id="deleteEdit">删除习惯</button>
+          <div class="modal-actions-right">
+            <button class="btn" id="cancelEdit">取消</button>
+            <button class="btn btn-primary" id="saveEdit">保存</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      window.__habitAppReady = false;
+      window.showBootError = function (msg) {
+        if (window.__habitAppReady) return;
+        var el = document.getElementById("loadStatus");
+        if (!el) return;
+        el.hidden = false;
+        el.className = "load-status load-status-error";
+        el.textContent = msg || "加载失败，请刷新页面重试";
+      };
+      setTimeout(function () {
+        if (!window.__habitAppReady) {
+          window.showBootError("加载超时，请检查网络并强制刷新页面");
+        }
+      }, 10000);
+    </script>
+    <script type="module">
+      import("./js/app.js?v=24").catch(function (err) {
+        console.error("[habit-tracker] module load failed:", err);
+        if (!window.__habitAppReady) {
+          window.showBootError("加载失败，请刷新页面重试");
+        }
+      });
+    </script>
+  </body>
+</html>

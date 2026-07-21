@@ -1,0 +1,1251 @@
+<!doctype html>
+<html lang="zh-Hans">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Habit Tracker · 功能确认</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f0f4f8;
+        --panel: #ffffff;
+        --text: #1a2332;
+        --muted: #5c6b7a;
+        --line: #dde4ec;
+        --accent: #6366f1;
+        --accent-soft: #eef2ff;
+        --success: #059669;
+        --success-soft: #ecfdf5;
+        --warn: #d97706;
+        --warn-soft: #fffbeb;
+        --danger: #dc2626;
+        --danger-soft: #fef2f2;
+        --plant: #16a34a;
+        --pet: #ea580c;
+        --shadow: 0 8px 24px rgba(26, 35, 50, 0.06);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "PingFang SC", "Noto Sans SC", sans-serif;
+        background: linear-gradient(180deg, #eef2ff 0%, var(--bg) 220px);
+        color: var(--text);
+        line-height: 1.5;
+      }
+
+      main {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 32px 20px 80px;
+      }
+
+      header {
+        margin-bottom: 28px;
+      }
+
+      h1 {
+        margin: 0 0 8px;
+        font-size: 28px;
+        font-weight: 700;
+      }
+
+      h2 {
+        margin: 0 0 16px;
+        font-size: 18px;
+        font-weight: 650;
+      }
+
+      h3 {
+        margin: 0 0 10px;
+        font-size: 15px;
+        font-weight: 600;
+      }
+
+      .subtitle {
+        color: var(--muted);
+        max-width: 720px;
+      }
+
+      .badge {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 600;
+        background: var(--accent-soft);
+        color: var(--accent);
+        margin-bottom: 12px;
+      }
+
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 22px;
+        margin-bottom: 20px;
+        box-shadow: var(--shadow);
+      }
+
+      .grid-2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+      }
+
+      @media (max-width: 900px) {
+        .grid-2 {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .feature-list {
+        display: grid;
+        gap: 10px;
+      }
+
+      .feature-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 12px 14px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        cursor: pointer;
+        transition: border-color 0.15s, background 0.15s;
+      }
+
+      .feature-item:hover {
+        border-color: #c7d2fe;
+        background: #fafbff;
+      }
+
+      .feature-item.disabled {
+        opacity: 0.55;
+        background: #f8fafc;
+      }
+
+      .feature-item input {
+        margin-top: 3px;
+        accent-color: var(--accent);
+      }
+
+      .feature-item strong {
+        display: block;
+        font-size: 14px;
+      }
+
+      .feature-item span {
+        font-size: 13px;
+        color: var(--muted);
+      }
+
+      .hint {
+        font-size: 13px;
+        color: var(--muted);
+        margin-top: 8px;
+      }
+
+      .callout {
+        padding: 12px 14px;
+        border-radius: 12px;
+        font-size: 13px;
+        margin-bottom: 16px;
+      }
+
+      .callout.info {
+        background: var(--accent-soft);
+        color: #3730a3;
+        border: 1px solid #c7d2fe;
+      }
+
+      .callout.warn {
+        background: var(--warn-soft);
+        color: #92400e;
+        border: 1px solid #fde68a;
+      }
+
+      .style-options {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+
+      .style-card {
+        border: 2px solid var(--line);
+        border-radius: 14px;
+        padding: 16px;
+        cursor: pointer;
+        transition: border-color 0.15s, transform 0.15s;
+      }
+
+      .style-card:hover {
+        transform: translateY(-1px);
+      }
+
+      .style-card.selected {
+        border-color: var(--accent);
+        background: var(--accent-soft);
+      }
+
+      .style-card .emoji {
+        font-size: 36px;
+        margin-bottom: 8px;
+      }
+
+      .style-card p {
+        margin: 0;
+        font-size: 13px;
+        color: var(--muted);
+      }
+
+      label.field-label {
+        display: block;
+        font-size: 13px;
+        color: var(--muted);
+        margin-bottom: 6px;
+      }
+
+      input[type="time"],
+      input[type="text"],
+      select,
+      textarea {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        font-size: 14px;
+        background: white;
+        font-family: inherit;
+      }
+
+      textarea {
+        min-height: 88px;
+        resize: vertical;
+      }
+
+      .icon-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .icon-btn {
+        width: 42px;
+        height: 42px;
+        border: 2px solid var(--line);
+        border-radius: 10px;
+        background: white;
+        font-size: 22px;
+        cursor: pointer;
+        transition: border-color 0.15s, transform 0.15s;
+      }
+
+      .icon-btn:hover {
+        transform: scale(1.05);
+      }
+
+      .icon-btn.selected {
+        border-color: var(--accent);
+        background: var(--accent-soft);
+      }
+
+      .preview-shell {
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        overflow: hidden;
+        background: #f8fafc;
+      }
+
+      .preview-nav {
+        display: flex;
+        gap: 4px;
+        padding: 10px 12px;
+        background: white;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .preview-tab {
+        padding: 6px 12px;
+        border: none;
+        border-radius: 8px;
+        background: transparent;
+        font-size: 13px;
+        cursor: pointer;
+        color: var(--muted);
+      }
+
+      .preview-tab.active {
+        background: var(--accent-soft);
+        color: var(--accent);
+        font-weight: 600;
+      }
+
+      .preview-body {
+        padding: 16px;
+        min-height: 420px;
+      }
+
+      .focus-grid {
+        display: grid;
+        gap: 12px;
+      }
+
+      .focus-card {
+        background: white;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 14px;
+        position: relative;
+      }
+
+      .focus-card.empty {
+        border-style: dashed;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 120px;
+        color: var(--muted);
+        font-size: 14px;
+        text-align: center;
+      }
+
+      .focus-top {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 10px;
+      }
+
+      .focus-avatar {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        display: grid;
+        place-items: center;
+        font-size: 26px;
+        background: var(--accent-soft);
+      }
+
+      .focus-meta {
+        flex: 1;
+      }
+
+      .focus-meta strong {
+        display: block;
+        font-size: 15px;
+      }
+
+      .focus-meta small {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .progress-bar {
+        height: 8px;
+        background: #e2e8f0;
+        border-radius: 999px;
+        overflow: hidden;
+        margin: 10px 0;
+      }
+
+      .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, var(--accent), #818cf8);
+        border-radius: 999px;
+        transition: width 0.3s;
+      }
+
+      .focus-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-top: 10px;
+      }
+
+      button {
+        font-family: inherit;
+        cursor: pointer;
+      }
+
+      .btn {
+        padding: 8px 14px;
+        border-radius: 10px;
+        border: 1px solid var(--line);
+        background: white;
+        font-size: 13px;
+        font-weight: 600;
+      }
+
+      .btn:hover {
+        background: #f8fafc;
+      }
+
+      .btn-primary {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: white;
+      }
+
+      .btn-primary:hover {
+        background: #4f46e5;
+      }
+
+      .btn-success {
+        background: var(--success);
+        border-color: var(--success);
+        color: white;
+      }
+
+      .btn-danger {
+        background: var(--danger-soft);
+        border-color: #fecaca;
+        color: var(--danger);
+      }
+
+      .btn-danger:hover {
+        background: #fee2e2;
+      }
+
+      .btn-ghost {
+        background: transparent;
+      }
+
+      .pool-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+        background: white;
+        border-radius: 12px;
+        overflow: hidden;
+      }
+
+      .pool-table th,
+      .pool-table td {
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--line);
+        text-align: left;
+      }
+
+      .pool-table th {
+        background: #f8fafc;
+        color: var(--muted);
+        font-weight: 600;
+        font-size: 12px;
+      }
+
+      .pool-table tr:last-child td {
+        border-bottom: none;
+      }
+
+      .stat-pill {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 999px;
+        background: #f1f5f9;
+        font-size: 12px;
+        margin-right: 4px;
+      }
+
+      .today-card {
+        background: white;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 16px;
+        margin-bottom: 12px;
+      }
+
+      .today-card.done {
+        border-color: #a7f3d0;
+        background: var(--success-soft);
+      }
+
+      .settings-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+
+      .config-output {
+        background: #0f172a;
+        color: #e2e8f0;
+        border-radius: 12px;
+        padding: 16px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 12px;
+        white-space: pre-wrap;
+        word-break: break-word;
+        max-height: 320px;
+        overflow: auto;
+      }
+
+      .footer-actions {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-top: 16px;
+      }
+
+      .toast {
+        position: fixed;
+        bottom: 24px;
+        left: 50%;
+        transform: translateX(-50%) translateY(80px);
+        background: #1e293b;
+        color: white;
+        padding: 12px 18px;
+        border-radius: 12px;
+        font-size: 14px;
+        opacity: 0;
+        transition: transform 0.25s, opacity 0.25s;
+        z-index: 100;
+        pointer-events: none;
+      }
+
+      .toast.show {
+        transform: translateX(-50%) translateY(0);
+        opacity: 1;
+      }
+
+      .modal-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.45);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        z-index: 50;
+      }
+
+      .modal-backdrop.show {
+        display: flex;
+      }
+
+      .modal {
+        background: white;
+        border-radius: 16px;
+        padding: 24px;
+        max-width: 420px;
+        width: 100%;
+        box-shadow: var(--shadow);
+      }
+
+      .modal h3 {
+        margin-bottom: 8px;
+      }
+
+      .modal p {
+        color: var(--muted);
+        font-size: 14px;
+        margin: 0 0 18px;
+      }
+
+      .modal-actions {
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+      }
+
+      .section-tag {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--muted);
+        margin-bottom: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <div class="badge">Step 1 · 功能确认（非正式 App）</div>
+        <h1>Habit Tracker 功能确认页</h1>
+        <p class="subtitle">
+          请在此确认核心功能、养成风格与图标偏好。右侧为可交互预览：你可以点击「放弃回收」将聚焦中的习惯退回习惯池，释放坑位后再从池子选入新习惯。确认满意后，复制底部配置或点击「确认配置」告诉我开始生成正式代码。
+        </p>
+      </header>
+
+      <div class="grid-2">
+        <section class="panel">
+          <h2>核心功能清单</h2>
+          <div class="callout info">
+            勾选表示你需要该功能。取消勾选代表 MVP 中可以暂缓。
+          </div>
+          <div class="feature-list" id="featureList"></div>
+        </section>
+
+        <section class="panel">
+          <h2>养成风格</h2>
+          <div class="style-options" id="styleOptions">
+            <div class="style-card selected" data-style="plant">
+              <div class="emoji">🌱 → 🌿 → 🌸</div>
+              <strong>植物系</strong>
+              <p>种子发芽、成长、开花。偏治愈、安静。</p>
+            </div>
+            <div class="style-card" data-style="pet">
+              <div class="emoji">🥚 → 🐣 → 🦊</div>
+              <strong>宠物系</strong>
+              <p>孵化、幼体、进化。偏可爱、有互动感。</p>
+            </div>
+          </div>
+
+          <div style="margin-top: 20px">
+            <label class="field-label" for="reminderTime">每日提醒时间</label>
+            <input type="time" id="reminderTime" value="20:00" />
+          </div>
+
+          <div style="margin-top: 14px">
+            <label class="field-label" for="notes">补充说明（可选）</label>
+            <textarea
+              id="notes"
+              placeholder="例如：希望断签允许每月补签 2 次；界面用简体中文……"
+            ></textarea>
+          </div>
+        </section>
+      </div>
+
+      <section class="panel">
+        <h2>习惯图标选择</h2>
+        <p class="hint">为示例习惯挑选图标，正式 App 将沿用相同选择器。</p>
+        <div id="habitIconPickers"></div>
+      </section>
+
+      <section class="panel">
+        <h2>交互预览</h2>
+        <div class="callout warn">
+          <strong>重点机制：</strong>聚焦区最多 3 个习惯（宠物/植物养成模式）。点击「放弃回收」会将该习惯移回习惯池，<em>释放一个坑位</em>，随后可从习惯池选入其他习惯。放弃不会删除历史：最高连续打卡与开启次数会保留。
+        </div>
+
+        <div class="preview-shell">
+          <div class="preview-nav">
+            <button class="preview-tab active" data-tab="focus">聚焦区</button>
+            <button class="preview-tab" data-tab="pool">习惯池</button>
+            <button class="preview-tab" data-tab="today">今日打卡</button>
+            <button class="preview-tab" data-tab="settings">设置</button>
+          </div>
+          <div class="preview-body" id="previewBody"></div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>配置摘要</h2>
+        <p class="hint">此 JSON 即为你确认后的开发输入。可复制保存，或在对话中粘贴给我。</p>
+        <div class="config-output" id="configOutput"></div>
+        <div class="footer-actions">
+          <button class="btn btn-primary" id="copyConfig">复制配置 JSON</button>
+          <button class="btn btn-success" id="confirmConfig">✓ 确认以上配置</button>
+          <button class="btn" id="resetDemo">重置预览数据</button>
+        </div>
+      </section>
+    </main>
+
+    <div class="toast" id="toast"></div>
+
+    <div class="modal-backdrop" id="confirmModal">
+      <div class="modal">
+        <h3>配置已确认</h3>
+        <p id="confirmModalText"></p>
+        <div class="modal-actions">
+          <button class="btn" id="closeModal">关闭</button>
+          <button class="btn btn-primary" id="copyFromModal">复制配置</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const ICON_OPTIONS = [
+        "📖", "🏃", "🧘", "💧", "🌅", "✍️", "🎸", "🥗",
+        "😴", "🧹", "💊", "🚶", "🧠", "🎯", "🍎", "📵",
+      ];
+
+      const FEATURES = [
+        {
+          id: "cycle21",
+          title: "21 天养成周期",
+          desc: "每个聚焦习惯独立计时，完成 21 天即养成成功。",
+          default: true,
+          core: true,
+        },
+        {
+          id: "focus3",
+          title: "最多 3 个并行聚焦习惯",
+          desc: "聚焦区同时最多 3 个坑位，宠物/植物养成模式。",
+          default: true,
+          core: true,
+        },
+        {
+          id: "abandon",
+          title: "放弃回收至习惯池",
+          desc: "聚焦中的习惯可放弃，退回习惯池并释放坑位。",
+          default: true,
+          core: true,
+        },
+        {
+          id: "poolStats",
+          title: "习惯池极简统计",
+          desc: "显示最高连续打卡天数、历史开启次数。",
+          default: true,
+          core: true,
+        },
+        {
+          id: "dailyCheckin",
+          title: "每日打卡",
+          desc: "今日页一键完成，驱动宠物/植物成长。",
+          default: true,
+          core: true,
+        },
+        {
+          id: "gamify",
+          title: "游戏化反馈",
+          desc: "XP、连续天数、阶段进化动画与里程碑奖励。",
+          default: true,
+          core: false,
+        },
+        {
+          id: "reminder",
+          title: "固定时间提醒",
+          desc: "PWA 浏览器通知，提醒未完成的习惯。",
+          default: true,
+          core: false,
+        },
+        {
+          id: "report",
+          title: "周期战报",
+          desc: "21 天结束时生成完成率与 streak 总结。",
+          default: true,
+          core: false,
+        },
+        {
+          id: "mulligan",
+          title: "每月补签",
+          desc: "允许有限次数补签，降低挫败感。",
+          default: false,
+          core: false,
+        },
+      ];
+
+      const STAGE_LABELS = {
+        plant: ["种子", "发芽", "成长", "开花"],
+        pet: ["蛋", "幼体", "少年", "进化"],
+      };
+
+      const STAGE_EMOJI = {
+        plant: ["🌱", "🌿", "🪴", "🌸"],
+        pet: ["🥚", "🐣", "🐥", "🦊"],
+      };
+
+      let style = "plant";
+      let activeTab = "focus";
+      let pendingAbandonId = null;
+
+      let habits = [
+        {
+          id: "h1",
+          name: "阅读 30 分钟",
+          icon: "📖",
+          bestStreak: 12,
+          attemptCount: 2,
+          focus: true,
+          day: 12,
+          streak: 5,
+          checkedToday: false,
+        },
+        {
+          id: "h2",
+          name: "运动 20 分钟",
+          icon: "🏃",
+          bestStreak: 7,
+          attemptCount: 1,
+          focus: true,
+          day: 5,
+          streak: 3,
+          checkedToday: true,
+        },
+        {
+          id: "h3",
+          name: "冥想 10 分钟",
+          icon: "🧘",
+          bestStreak: 14,
+          attemptCount: 3,
+          focus: false,
+          day: 0,
+          streak: 0,
+          checkedToday: false,
+        },
+        {
+          id: "h4",
+          name: "喝 8 杯水",
+          icon: "💧",
+          bestStreak: 21,
+          attemptCount: 1,
+          focus: false,
+          day: 0,
+          streak: 0,
+          checkedToday: false,
+        },
+        {
+          id: "h5",
+          name: "早起 6:30",
+          icon: "🌅",
+          bestStreak: 9,
+          attemptCount: 2,
+          focus: false,
+          day: 0,
+          streak: 0,
+          checkedToday: false,
+        },
+      ];
+
+      const featureState = Object.fromEntries(
+        FEATURES.map((f) => [f.id, f.default])
+      );
+
+      function $(sel) {
+        return document.querySelector(sel);
+      }
+
+      function showToast(msg) {
+        const el = $("#toast");
+        el.textContent = msg;
+        el.classList.add("show");
+        setTimeout(() => el.classList.remove("show"), 2400);
+      }
+
+      function focusedHabits() {
+        return habits.filter((h) => h.focus);
+      }
+
+      function poolHabits() {
+        return habits.filter((h) => !h.focus);
+      }
+
+      function focusSlotsRemaining() {
+        return 3 - focusedHabits().length;
+      }
+
+      function stageIndex(day) {
+        if (day <= 0) return 0;
+        if (day <= 7) return 1;
+        if (day <= 14) return 2;
+        return 3;
+      }
+
+      function growthEmoji(habit) {
+        const idx = stageIndex(habit.day);
+        return STAGE_EMOJI[style][idx];
+      }
+
+      function growthLabel(habit) {
+        const idx = stageIndex(habit.day);
+        return STAGE_LABELS[style][idx];
+      }
+
+      function renderFeatures() {
+        const list = $("#featureList");
+        list.innerHTML = FEATURES.map(
+          (f) => `
+          <label class="feature-item ${featureState[f.id] ? "" : "disabled"}">
+            <input type="checkbox" data-feature="${f.id}" ${
+            featureState[f.id] ? "checked" : ""
+          } />
+            <div>
+              <strong>${f.title}${f.core ? " · 核心" : ""}</strong>
+              <span>${f.desc}</span>
+            </div>
+          </label>
+        `
+        ).join("");
+
+        list.querySelectorAll("input[data-feature]").forEach((input) => {
+          input.addEventListener("change", (e) => {
+            const id = e.target.dataset.feature;
+            featureState[id] = e.target.checked;
+            e.target.closest(".feature-item").classList.toggle(
+              "disabled",
+              !e.target.checked
+            );
+            renderConfig();
+          });
+        });
+      }
+
+      function renderIconPickers() {
+        const container = $("#habitIconPickers");
+        container.innerHTML = habits
+          .map(
+            (h) => `
+          <div style="margin-bottom: 16px">
+            <div class="section-tag">${h.name}</div>
+            <div class="icon-grid" data-habit-id="${h.id}">
+              ${ICON_OPTIONS.map(
+                (icon) => `
+                <button type="button" class="icon-btn ${
+                  h.icon === icon ? "selected" : ""
+                }" data-icon="${icon}">${icon}</button>
+              `
+              ).join("")}
+            </div>
+          </div>
+        `
+          )
+          .join("");
+
+        container.querySelectorAll(".icon-grid").forEach((grid) => {
+          grid.querySelectorAll(".icon-btn").forEach((btn) => {
+            btn.addEventListener("click", () => {
+              const habit = habits.find((h) => h.id === grid.dataset.habitId);
+              habit.icon = btn.dataset.icon;
+              renderIconPickers();
+              renderPreview();
+              renderConfig();
+            });
+          });
+        });
+      }
+
+      function renderFocusTab() {
+        const focused = focusedHabits();
+        const emptySlots = Math.max(0, 3 - focused.length);
+
+        const cards = focused
+          .map((h) => {
+            const pct = Math.round((h.day / 21) * 100);
+            return `
+            <div class="focus-card" data-id="${h.id}">
+              <div class="focus-top">
+                <div class="focus-avatar">${growthEmoji(h)}</div>
+                <div class="focus-meta">
+                  <strong>${h.icon} ${h.name}</strong>
+                  <small>${growthLabel(h)} · 第 ${h.day} / 21 天 · 🔥 ${h.streak} 天</small>
+                </div>
+              </div>
+              <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+              <div class="focus-actions">
+                <button class="btn btn-success" data-check="${h.id}" ${
+              h.checkedToday ? "disabled" : ""
+            }>${h.checkedToday ? "今日已完成 ✓" : "模拟今日打卡"}</button>
+                <button class="btn btn-danger" data-abandon="${h.id}">放弃回收 → 习惯池</button>
+              </div>
+            </div>
+          `;
+          })
+          .join("");
+
+        const empties = Array.from({ length: emptySlots })
+          .map(
+            () => `
+          <div class="focus-card empty">
+            空坑位 · 可从习惯池选入（剩余 ${focusSlotsRemaining()} 个）
+          </div>
+        `
+          )
+          .join("");
+
+        return `<div class="focus-grid">${cards}${empties}</div>`;
+      }
+
+      function renderPoolTab() {
+        const rows = poolHabits()
+          .map(
+            (h) => `
+          <tr>
+            <td>${h.icon} ${h.name}</td>
+            <td><span class="stat-pill">最高 ${h.bestStreak} 天</span></td>
+            <td><span class="stat-pill">${h.attemptCount} 次开启</span></td>
+            <td>
+              <button class="btn btn-primary" data-adopt="${h.id}" ${
+              focusSlotsRemaining() === 0 ? "disabled" : ""
+            }>选入聚焦</button>
+            </td>
+          </tr>
+        `
+          )
+          .join("");
+
+        return `
+          <table class="pool-table">
+            <thead>
+              <tr>
+                <th>习惯</th>
+                <th>最高连续打卡</th>
+                <th>历史开启次数</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>${rows || `<tr><td colspan="4">习惯池为空</td></tr>`}</tbody>
+          </table>
+          <p class="hint" style="margin-top:12px">极简展示，无养成动画。选入聚焦后开启新的 21 天周期，开启次数 +1。</p>
+        `;
+      }
+
+      function renderTodayTab() {
+        const cards = focusedHabits()
+          .map(
+            (h) => `
+          <div class="today-card ${h.checkedToday ? "done" : ""}">
+            <strong>${h.icon} ${h.name}</strong>
+            <p class="hint" style="margin:6px 0 10px">${growthEmoji(h)} ${
+              h.checkedToday ? "今日已完成，+XP" : "等待打卡"
+            }</p>
+            <button class="btn ${
+              h.checkedToday ? "" : "btn-primary"
+            }" data-check="${h.id}" ${h.checkedToday ? "disabled" : ""}>
+              ${h.checkedToday ? "已完成 ✓" : "完成打卡"}
+            </button>
+          </div>
+        `
+          )
+          .join("");
+
+        return cards || `<p class="hint">聚焦区暂无习惯，请从习惯池选入。</p>`;
+      }
+
+      function renderSettingsTab() {
+        const time = $("#reminderTime").value;
+        return `
+          <div class="settings-row">
+            <div>
+              <label class="field-label">提醒时间</label>
+              <input type="time" value="${time}" disabled />
+            </div>
+            <div>
+              <label class="field-label">养成风格</label>
+              <input type="text" value="${
+                style === "plant" ? "植物系" : "宠物系"
+              }" disabled />
+            </div>
+          </div>
+          <p class="hint" style="margin-top:14px">正式 App 中将支持修改提醒时间、导出数据等。</p>
+        `;
+      }
+
+      function renderPreview() {
+        const body = $("#previewBody");
+        if (activeTab === "focus") body.innerHTML = renderFocusTab();
+        if (activeTab === "pool") body.innerHTML = renderPoolTab();
+        if (activeTab === "today") body.innerHTML = renderTodayTab();
+        if (activeTab === "settings") body.innerHTML = renderSettingsTab();
+
+        body.querySelectorAll("[data-abandon]").forEach((btn) => {
+          btn.addEventListener("click", () => abandonHabit(btn.dataset.abandon));
+        });
+
+        body.querySelectorAll("[data-adopt]").forEach((btn) => {
+          btn.addEventListener("click", () => adoptHabit(btn.dataset.adopt));
+        });
+
+        body.querySelectorAll("[data-check]").forEach((btn) => {
+          btn.addEventListener("click", () => checkIn(btn.dataset.check));
+        });
+      }
+
+      function abandonHabit(id) {
+        if (!featureState.abandon) {
+          showToast("你已取消「放弃回收」功能");
+          return;
+        }
+        const habit = habits.find((h) => h.id === id);
+        if (!habit || !habit.focus) return;
+
+        habit.focus = false;
+        habit.checkedToday = false;
+        if (habit.day > habit.bestStreak) habit.bestStreak = habit.day;
+
+        showToast(`「${habit.name}」已回收至习惯池，空出 1 个聚焦坑位`);
+        renderPreview();
+        renderConfig();
+      }
+
+      function adoptHabit(id) {
+        if (focusSlotsRemaining() <= 0) {
+          showToast("聚焦坑位已满，请先放弃一个习惯");
+          return;
+        }
+        const habit = habits.find((h) => h.id === id);
+        if (!habit || habit.focus) return;
+
+        habit.focus = true;
+        habit.day = 1;
+        habit.streak = 0;
+        habit.checkedToday = false;
+        habit.attemptCount += 1;
+
+        showToast(`「${habit.name}」已选入聚焦，开始 21 天周期`);
+        activeTab = "focus";
+        document.querySelectorAll(".preview-tab").forEach((t) => {
+          t.classList.toggle("active", t.dataset.tab === "focus");
+        });
+        renderPreview();
+        renderConfig();
+      }
+
+      function checkIn(id) {
+        const habit = habits.find((h) => h.id === id);
+        if (!habit || !habit.focus || habit.checkedToday) return;
+
+        habit.checkedToday = true;
+        habit.day = Math.min(21, habit.day + 1);
+        habit.streak += 1;
+        if (habit.streak > habit.bestStreak) habit.bestStreak = habit.streak;
+
+        showToast(`${growthEmoji(habit)} 「${habit.name}」打卡成功！`);
+        renderPreview();
+        renderConfig();
+      }
+
+      function buildConfig() {
+        return {
+          confirmed: false,
+          product: "Habit Tracker",
+          phase: "awaiting_full_app_generation",
+          style,
+          reminderTime: $("#reminderTime").value,
+          notes: $("#notes").value.trim(),
+          features: FEATURES.filter((f) => featureState[f.id]).map((f) => f.id),
+          habits: habits.map((h) => ({
+            name: h.name,
+            icon: h.icon,
+            inFocus: h.focus,
+            bestStreak: h.bestStreak,
+            attemptCount: h.attemptCount,
+            currentDay: h.focus ? h.day : 0,
+          })),
+          focusSlots: {
+            max: 3,
+            used: focusedHabits().length,
+            abandonReturnsToPool: featureState.abandon,
+          },
+        };
+      }
+
+      function renderConfig() {
+        $("#configOutput").textContent = JSON.stringify(buildConfig(), null, 2);
+      }
+
+      function resetDemo() {
+        habits = [
+          {
+            id: "h1",
+            name: "阅读 30 分钟",
+            icon: "📖",
+            bestStreak: 12,
+            attemptCount: 2,
+            focus: true,
+            day: 12,
+            streak: 5,
+            checkedToday: false,
+          },
+          {
+            id: "h2",
+            name: "运动 20 分钟",
+            icon: "🏃",
+            bestStreak: 7,
+            attemptCount: 1,
+            focus: true,
+            day: 5,
+            streak: 3,
+            checkedToday: true,
+          },
+          {
+            id: "h3",
+            name: "冥想 10 分钟",
+            icon: "🧘",
+            bestStreak: 14,
+            attemptCount: 3,
+            focus: false,
+            day: 0,
+            streak: 0,
+            checkedToday: false,
+          },
+          {
+            id: "h4",
+            name: "喝 8 杯水",
+            icon: "💧",
+            bestStreak: 21,
+            attemptCount: 1,
+            focus: false,
+            day: 0,
+            streak: 0,
+            checkedToday: false,
+          },
+          {
+            id: "h5",
+            name: "早起 6:30",
+            icon: "🌅",
+            bestStreak: 9,
+            attemptCount: 2,
+            focus: false,
+            day: 0,
+            streak: 0,
+            checkedToday: false,
+          },
+        ];
+        renderIconPickers();
+        renderPreview();
+        renderConfig();
+        showToast("预览数据已重置");
+      }
+
+      document.querySelectorAll(".style-card").forEach((card) => {
+        card.addEventListener("click", () => {
+          document.querySelectorAll(".style-card").forEach((c) => c.classList.remove("selected"));
+          card.classList.add("selected");
+          style = card.dataset.style;
+          renderPreview();
+          renderConfig();
+        });
+      });
+
+      document.querySelectorAll(".preview-tab").forEach((tab) => {
+        tab.addEventListener("click", () => {
+          activeTab = tab.dataset.tab;
+          document.querySelectorAll(".preview-tab").forEach((t) => t.classList.remove("active"));
+          tab.classList.add("active");
+          renderPreview();
+        });
+      });
+
+      $("#reminderTime").addEventListener("change", renderConfig);
+      $("#notes").addEventListener("input", renderConfig);
+
+      $("#copyConfig").addEventListener("click", async () => {
+        await navigator.clipboard.writeText($("#configOutput").textContent);
+        showToast("配置 JSON 已复制");
+      });
+
+      $("#confirmConfig").addEventListener("click", async () => {
+        const config = buildConfig();
+        config.confirmed = true;
+        config.confirmedAt = new Date().toISOString();
+        const text = JSON.stringify(config, null, 2);
+        $("#configOutput").textContent = text;
+        $("#confirmModalText").textContent =
+          "请回到对话中告诉我「开始生成代码」，并把配置 JSON 粘贴给我（或说明使用默认配置）。我将据此开发正式 Habit Tracker。";
+        $("#confirmModal").classList.add("show");
+        try {
+          await navigator.clipboard.writeText(text);
+        } catch (_) {}
+      });
+
+      $("#closeModal").addEventListener("click", () => {
+        $("#confirmModal").classList.remove("show");
+      });
+
+      $("#copyFromModal").addEventListener("click", async () => {
+        await navigator.clipboard.writeText($("#configOutput").textContent);
+        showToast("配置 JSON 已复制");
+      });
+
+      $("#resetDemo").addEventListener("click", resetDemo);
+
+      renderFeatures();
+      renderIconPickers();
+      renderPreview();
+      renderConfig();
+    </script>
+  </body>
+</html>

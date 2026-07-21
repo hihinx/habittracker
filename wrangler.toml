@@ -1,0 +1,8 @@
+name = "habit-tracker"
+compatibility_date = "2024-08-01"
+pages_build_output_dir = "."
+
+# 创建 KV 后把 id 填进来（见 DEPLOY.md）
+[[kv_namespaces]]
+binding = "HABIT_STATE"
+id = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
