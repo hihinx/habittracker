@@ -4,10 +4,11 @@
   "scripts": {
     "build": "esbuild js/app.js --bundle --format=iife --outfile=js/bundle.js --target=es2018 --legal-comments=none",
     "deploy:pages": "wrangler pages deploy . --project-name=habittracker",
-    "deploy:worker": "npm run build && wrangler deploy -c wrangler.worker.toml"
+    "deploy:worker": "npm run build && wrangler deploy -c wrangler.worker.toml",
+    "login:cloudflare": "wrangler login"
   },
   "devDependencies": {
     "esbuild": "^0.25.0",
-    "wrangler": "^3.114.0"
+    "wrangler": "^4.113.0"
   }
 }
