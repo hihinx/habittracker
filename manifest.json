@@ -1,8 +1,8 @@
 {
-  "name": "21天养成游戏",
-  "short_name": "21天养成",
-  "description": "21天习惯养成，植物与宠物随机陪伴打卡",
-  "start_url": "./index.html?v=22",
+  "name": "伴芽 HabitTracker",
+  "short_name": "伴芽",
+  "description": "每天一点，伴你发芽 · 每日伴与随心芽习惯养成",
+  "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "background_color": "#f0f4f8",

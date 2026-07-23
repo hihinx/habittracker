@@ -1,25 +1,32 @@
 export const HABIT_TYPES = {
-  daily: { id: "daily", label: "21Daily", badgeClass: "badge-daily" },
-  general: { id: "general", label: "General", badgeClass: "badge-general" },
+  daily: { id: "daily", label: "每日伴", badgeClass: "badge-daily" },
+  general: { id: "general", label: "随心芽", badgeClass: "badge-general" },
 };
 
 export const DAILY_TARGET = 21;
 export const GENERAL_DEFAULT_DAYS = 30;
 export const GENERAL_DEFAULT_CHECKINS = 10;
-export const MAX_FOCUS_PER_TYPE = 3;
+export const MAX_FOCUS_PER_TYPE = 5;
 
 export function typeInfo(type) {
   return HABIT_TYPES[type] || HABIT_TYPES.daily;
 }
 
+function localDateKey(date = new Date()) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
 export function todayKey() {
-  return new Date().toISOString().slice(0, 10);
+  return localDateKey();
 }
 
 export function dateKeyOffset(days) {
   const d = new Date();
   d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
+  return localDateKey(d);
 }
 
 export function yesterdayKey() {
@@ -29,7 +36,7 @@ export function yesterdayKey() {
 export function addDays(dateKey, days) {
   const d = new Date(dateKey + "T12:00:00");
   d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
+  return localDateKey(d);
 }
 
 export function daysBetween(startKey, endKey) {
@@ -91,7 +98,7 @@ export function stageDayForCompanion(session) {
 }
 
 export function typeToastLabel(type) {
-  return type === "general" ? "常规习惯" : "微习惯";
+  return type === "general" ? "随心芽" : "每日伴";
 }
 
 export function mulliganLabel(session) {

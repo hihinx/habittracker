@@ -7,22 +7,22 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta http-equiv="Cache-Control" content="no-cache" />
-    <title>21天养成游戏</title>
+    <title>伴芽 HabitTracker</title>
     <link rel="manifest" href="./manifest.json" />
-    <link rel="stylesheet" href="./css/app.css?v=23" />
+    <link rel="stylesheet" href="./css/app.css?v=39" />
   </head>
   <body>
     <div id="loadStatus" class="load-status">加载中…</div>
     <div class="app-shell">
     <header class="app-header">
-      <h1>21天养成游戏</h1>
-      <p>自律是自由的伙伴～</p>
+      <h1>伴芽</h1>
+      <p class="tagline">每天一点，伴你发芽 <span class="tagline-en">A little each day, grow with your pal.</span></p>
       <div class="stats-bar" id="statsBar"></div>
     </header>
 
     <main>
       <nav class="tab-nav">
-        <button class="tab-btn active" data-tab="home">今日聚焦</button>
+        <button class="tab-btn active" data-tab="home">今日</button>
         <button class="tab-btn" data-tab="pool">习惯池</button>
         <button class="tab-btn" data-tab="settings">设置</button>
       </nav>
@@ -76,7 +76,7 @@
     <div class="modal-backdrop" id="rescueModal">
       <div class="modal">
         <div class="modal-emoji">⚠️</div>
-        <h2>昨日未打卡</h2>
+        <h2>昨日未照料</h2>
         <p id="rescueMsg"></p>
         <div class="modal-actions">
           <button class="btn btn-primary" id="rescueMulligan">使用补签挽救</button>
@@ -89,12 +89,12 @@
     <div class="modal-backdrop" id="hatchModal">
       <div class="modal hatch-modal">
         <div class="modal-emoji hatch-emoji" id="hatchEmoji">🥚</div>
-        <h2 id="hatchTitle">你获得了新伙伴！</h2>
-        <p id="hatchMsg">连续打卡 21 天，帮它完成进化吧～</p>
+        <h2 id="hatchTitle">你获得了一枚宠物蛋！</h2>
+        <p id="hatchMsg">连续照料 21 天，帮它孵化成伙伴吧～</p>
         <div class="hatch-stages" id="hatchStages"></div>
         <p class="hatch-habit" id="hatchHabit"></p>
         <div class="modal-actions">
-          <button class="btn btn-primary" id="closeHatch">开始养成</button>
+          <button class="btn btn-primary" id="closeHatch">开始照料</button>
         </div>
       </div>
     </div>
@@ -106,8 +106,8 @@
         <div class="form-group">
           <label>习惯类型</label>
           <select id="habitType">
-            <option value="daily">21Daily · 连续21天</option>
-            <option value="general">General · 期限内指定次数</option>
+            <option value="daily">每日伴 · 连续 21 天</option>
+            <option value="general">随心芽 · 期限内指定次数</option>
           </select>
         </div>
         <div class="form-group" id="generalGoalFields" hidden>
@@ -150,8 +150,8 @@
         <div class="form-group">
           <label>习惯类型</label>
           <select id="editHabitType">
-            <option value="daily">21Daily</option>
-            <option value="general">General · 期限内指定次数</option>
+            <option value="daily">每日伴 · 连续 21 天</option>
+            <option value="general">随心芽 · 期限内指定次数</option>
           </select>
         </div>
         <div class="form-group" id="editGeneralGoalFields" hidden>
@@ -191,6 +191,7 @@
 
     <script>
       window.__habitAppReady = false;
+      window.__habitBootStarted = false;
       window.showBootError = function (msg) {
         if (window.__habitAppReady) return;
         var el = document.getElementById("loadStatus");
@@ -199,19 +200,24 @@
         el.className = "load-status load-status-error";
         el.textContent = msg || "加载失败，请刷新页面重试";
       };
-      setTimeout(function () {
-        if (!window.__habitAppReady) {
-          window.showBootError("加载超时，请检查网络并强制刷新页面");
-        }
-      }, 10000);
-    </script>
-    <script type="module">
-      import("./js/app.js?v=24").catch(function (err) {
-        console.error("[habit-tracker] module load failed:", err);
-        if (!window.__habitAppReady) {
+      if (!window.Promise || !window.fetch || !window.localStorage) {
+        window.showBootError("浏览器版本过低，请用系统浏览器或 Chrome 打开");
+      }
+      window.addEventListener("error", function (e) {
+        if (window.__habitAppReady) return;
+        if (e.filename && /\/js\/.+\.js/i.test(e.filename)) {
           window.showBootError("加载失败，请刷新页面重试");
         }
-      });
+      }, true);
+      setTimeout(function () {
+        if (window.__habitAppReady) return;
+        if (!window.__habitBootStarted) {
+          window.showBootError("加载失败，请刷新页面重试");
+          return;
+        }
+        window.showBootError("加载超时，请检查网络并强制刷新页面");
+      }, 25000);
     </script>
+    <script defer src="./js/bundle.js?v=35"></script>
   </body>
 </html>

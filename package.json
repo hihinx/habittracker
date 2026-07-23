@@ -2,9 +2,12 @@
   "name": "habittracker",
   "private": true,
   "scripts": {
-    "deploy": "wrangler pages deploy . --project-name=habittracker"
+    "build": "esbuild js/app.js --bundle --format=iife --outfile=js/bundle.js --target=es2018 --legal-comments=none",
+    "deploy:pages": "wrangler pages deploy . --project-name=habittracker",
+    "deploy:worker": "npm run build && wrangler deploy -c wrangler.worker.toml"
   },
   "devDependencies": {
+    "esbuild": "^0.25.0",
     "wrangler": "^3.114.0"
   }
 }

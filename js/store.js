@@ -1,4 +1,4 @@
-import { randomCompanion, cloneCompanion } from "./plants.js";
+import { randomPet, plantForGoalDays, cloneCompanion } from "./plants.js";
 import {
   todayKey,
   yesterdayKey,
@@ -14,8 +14,10 @@ import {
 } from "./habit-rules.js";
 
 const STORAGE_KEY = "habit-tracker-v2";
+const META_KEY = "habit-tracker-v2-meta";
 const API_STATE = "/api/state";
 const FETCH_TIMEOUT_MS = 6000;
+const BOOT_SYNC_TIMEOUT_MS = 4000;
 
 async function fetchWithTimeout(url, options = {}, ms = FETCH_TIMEOUT_MS) {
   const ctrl = new AbortController();
@@ -66,7 +68,6 @@ function migrateHabit(h) {
   return {
     goalDays: GENERAL_DEFAULT_DAYS,
     goalCheckins: GENERAL_DEFAULT_CHECKINS,
-    type: "daily",
     ...h,
     type: h.type || "daily",
   };
@@ -84,9 +85,14 @@ function migrateSession(s) {
     goalCheckins: s.goalCheckins || GENERAL_DEFAULT_CHECKINS,
   };
   if (type === "general") {
-    delete session.plant;
-  } else if (!session.plant) {
-    session.plant = randomCompanion();
+    const goalDays = session.goalDays || GENERAL_DEFAULT_DAYS;
+    if (!session.plant || session.plant.kind === "pet") {
+      session.plant = plantForGoalDays(goalDays);
+    }
+  } else {
+    if (!session.plant || session.plant.kind !== "pet") {
+      session.plant = randomPet();
+    }
   }
   return session;
 }
@@ -110,8 +116,7 @@ function buildAchievementFromSession(session, habit) {
     checkIns: session.type === "general" ? session.checkIns.length : undefined,
     goalDays: session.goalDays,
     goalCheckins: session.goalCheckins,
-    companion:
-      session.type === "daily" && session.plant ? cloneCompanion(session.plant) : undefined,
+    companion: session.plant ? cloneCompanion(session.plant) : undefined,
   };
 }
 
@@ -135,10 +140,10 @@ function migrateAchievements(state) {
   }
 
   for (const a of state.achievements) {
-    if (a.type === "general") {
+    if (a.type === "general" && a.companion?.kind === "pet") {
       delete a.companion;
     }
-    if (a.type === "daily" && !a.companion && a.sessionId) {
+    if (!a.companion && a.sessionId) {
       const session = state.focusSessions.find((s) => s.id === a.sessionId);
       if (session?.plant) a.companion = cloneCompanion(session.plant);
     }
@@ -174,8 +179,8 @@ function normalizeState(raw) {
   const habits = (raw?.habits || []).map(migrateHabit);
   const focusSessions = (raw?.focusSessions || []).map(migrateSession);
   const state = {
-    ...cloneData(DEFAULT_STATE),
-    ...raw,
+    reminderTime: raw?.reminderTime || DEFAULT_STATE.reminderTime,
+    mulliganCredits: Number(raw?.mulliganCredits) || 0,
     habits,
     focusSessions,
     achievements: raw?.achievements || [],
@@ -192,6 +197,7 @@ export class HabitStore {
     this.revision = 0;
     this.syncEnabled = false;
     this._pushTimer = null;
+    this._pendingPush = false;
     this._pendingEvents = [];
   }
 
@@ -203,6 +209,23 @@ export class HabitStore {
 
   _emit(event) {
     this._pendingEvents.push(event);
+  }
+
+  loadMeta() {
+    try {
+      const meta = JSON.parse(localStorage.getItem(META_KEY) || "{}");
+      this.revision = Number(meta.revision) || 0;
+    } catch {
+      this.revision = 0;
+    }
+  }
+
+  saveMeta() {
+    try {
+      localStorage.setItem(META_KEY, JSON.stringify({ revision: this.revision }));
+    } catch {
+      /* ignore */
+    }
   }
 
   loadLocal() {
@@ -219,7 +242,12 @@ export class HabitStore {
   }
 
   saveLocal() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(this.state));
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(this.state));
+      this.saveMeta();
+    } catch {
+      /* private mode / storage full — keep running without persistence */
+    }
   }
 
   async fetchServer() {
@@ -238,12 +266,27 @@ export class HabitStore {
     if (!res.ok) throw new Error(`save failed ${res.status}`);
     const payload = await res.json();
     this.revision = payload.revision || this.revision;
+    this._pendingPush = false;
+    this.saveMeta();
   }
 
   applyServerPayload(payload) {
     if (!payload?.state || !Array.isArray(payload.state.habits)) return false;
     const incomingRev = payload.revision || 0;
-    if (incomingRev <= this.revision && this.state.habits.length > 0) return false;
+    if (incomingRev < this.revision) return false;
+    if (incomingRev === this.revision && this.state.habits.length > 0) return false;
+
+    const serverUpdated = payload.state.updatedAt || payload.updatedAt;
+    const localUpdated = this.state.updatedAt;
+    if (
+      this.state.habits.length > 0 &&
+      localUpdated &&
+      serverUpdated &&
+      localUpdated > serverUpdated
+    ) {
+      return false;
+    }
+
     this.state = normalizeState(payload.state);
     this.revision = incomingRev;
     this.evaluateSessions(false);
@@ -251,35 +294,98 @@ export class HabitStore {
     return true;
   }
 
-  async init() {
-    const local = this.loadLocal();
-    try {
-      const payload = await this.fetchServer();
-      this.syncEnabled = true;
-      const serverHasData = payload.state && payload.state.habits?.length > 0;
-      const localHasData = local.habits?.length > 0;
+  async _mergeWithServer(local) {
+    const payload = await this.fetchServer();
+    this.syncEnabled = true;
+    const incomingRev = payload.revision || 0;
+    const serverHasData = payload.state?.habits?.length > 0;
+    const localHasData = local.habits?.length > 0;
+    const serverUpdated = payload.state?.updatedAt || payload.updatedAt;
+    const localUpdated = this.state.updatedAt;
 
-      if (serverHasData) {
-        this.applyServerPayload(payload);
-      } else if (localHasData) {
-        this.state = normalizeState(local);
-        this.evaluateSessions(false);
-        await this.pushServer();
-      } else {
-        this.state = normalizeState(local);
+    const localIsNewer =
+      localHasData &&
+      localUpdated &&
+      (!serverUpdated || localUpdated > serverUpdated || incomingRev < this.revision);
+
+    if (localIsNewer) {
+      await this.pushServer();
+      return;
+    }
+
+    if (serverHasData && incomingRev >= this.revision) {
+      if (this.applyServerPayload(payload)) {
+        this.evaluateSessions(true);
+        window.dispatchEvent(new CustomEvent("habit-store-synced"));
       }
+      return;
+    }
+
+    if (localHasData) {
+      await this.pushServer();
+    }
+  }
+
+  async init() {
+    this.loadMeta();
+    const local = this.loadLocal();
+    this.state = normalizeState(local);
+    this.evaluateSessions(false);
+    this.evaluateSessions(true);
+    void this._bootSync(local);
+    return this;
+  }
+
+  async _bootSync(local) {
+    try {
+      await Promise.race([
+        this._mergeWithServer(local),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("sync timeout")), BOOT_SYNC_TIMEOUT_MS)
+        ),
+      ]);
     } catch {
-      this.state = normalizeState(local);
-      this.evaluateSessions(false);
+      this.syncEnabled = false;
+    }
+    if (this._pendingPush && this.syncEnabled) {
+      this._pendingPush = false;
+      await this.pushServer().catch(() => {
+        this._pendingPush = true;
+      });
     }
     this.evaluateSessions(true);
-    return this;
+    window.dispatchEvent(new CustomEvent("habit-store-synced"));
+  }
+
+  async ensureSync() {
+    if (this.syncEnabled) return true;
+    try {
+      await Promise.race([
+        this.fetchServer(),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("sync timeout")), BOOT_SYNC_TIMEOUT_MS)
+        ),
+      ]);
+      this.syncEnabled = true;
+      if (this._pendingPush) {
+        await this.pushServer().catch(() => {});
+      }
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   async syncFromServer() {
     if (!this.syncEnabled) return false;
     try {
       const payload = await this.fetchServer();
+      const serverUpdated = payload.state?.updatedAt || payload.updatedAt;
+      const localUpdated = this.state.updatedAt;
+      if (localUpdated && serverUpdated && localUpdated > serverUpdated) {
+        await this.pushServer();
+        return false;
+      }
       const changed = this.applyServerPayload(payload);
       this.evaluateSessions(true);
       return changed;
@@ -291,10 +397,15 @@ export class HabitStore {
   save() {
     this.state.updatedAt = new Date().toISOString();
     this.saveLocal();
-    if (!this.syncEnabled) return;
+    if (!this.syncEnabled) {
+      this._pendingPush = true;
+      return;
+    }
     clearTimeout(this._pushTimer);
     this._pushTimer = setTimeout(() => {
-      this.pushServer().catch(() => {});
+      this.pushServer().catch(() => {
+        this._pendingPush = true;
+      });
     }, 120);
   }
 
@@ -422,11 +533,12 @@ export class HabitStore {
     };
 
     if (type === "daily") {
-      session.plant = randomCompanion();
+      session.plant = randomPet();
     } else {
       session.goalDays = habit.goalDays || GENERAL_DEFAULT_DAYS;
       session.goalCheckins = habit.goalCheckins || GENERAL_DEFAULT_CHECKINS;
       session.endDate = addDays(today, session.goalDays - 1);
+      session.plant = plantForGoalDays(session.goalDays);
     }
 
     habit.attemptCount += 1;
@@ -684,41 +796,63 @@ export class HabitStore {
     if (this.state.habits.length > 0) return false;
 
     for (const h of config.habits) {
+      const type = h.type || "daily";
       const habit = {
         id: uid(),
         name: h.name,
         icon: h.icon,
         description: "",
-        type: "daily",
+        type,
+        goalDays: h.goalDays || GENERAL_DEFAULT_DAYS,
+        goalCheckins: h.goalCheckins || GENERAL_DEFAULT_CHECKINS,
         bestStreak: h.bestStreak,
         attemptCount: h.attemptCount,
-        completionCount: h.bestStreak >= 21 ? 1 : 0,
+        completionCount: type === "daily" && h.bestStreak >= 21 ? 1 : h.completionCount || 0,
         status: "pool",
         createdAt: new Date().toISOString(),
       };
       this.state.habits.push(habit);
 
       if (h.inFocus && h.currentDay > 0) {
-        const companion = randomCompanion();
         const checkIns = [];
         for (let i = 0; i < h.currentDay; i++) {
           const d = new Date();
           d.setDate(d.getDate() - (h.currentDay - 1 - i));
           checkIns.push(d.toISOString().slice(0, 10));
         }
-        this.state.focusSessions.push({
-          id: uid(),
-          habitId: habit.id,
-          type: "daily",
-          plant: companion,
-          startDate: checkIns[0] || todayKey(),
-          checkIns,
-          mulliganUsed: 0,
-          mulliganDates: [],
-          atRisk: false,
-          active: true,
-          startedAt: new Date().toISOString(),
-        });
+        const today = todayKey();
+        if (type === "general") {
+          this.state.focusSessions.push({
+            id: uid(),
+            habitId: habit.id,
+            type: "general",
+            plant: plantForGoalDays(habit.goalDays),
+            goalDays: habit.goalDays,
+            goalCheckins: habit.goalCheckins,
+            startDate: addDays(today, -(h.currentDay - 1)),
+            endDate: addDays(today, habit.goalDays - h.currentDay),
+            checkIns,
+            mulliganUsed: 0,
+            mulliganDates: [],
+            atRisk: false,
+            active: true,
+            startedAt: new Date().toISOString(),
+          });
+        } else {
+          this.state.focusSessions.push({
+            id: uid(),
+            habitId: habit.id,
+            type: "daily",
+            plant: randomPet(),
+            startDate: checkIns[0] || today,
+            checkIns,
+            mulliganUsed: 0,
+            mulliganDates: [],
+            atRisk: false,
+            active: true,
+            startedAt: new Date().toISOString(),
+          });
+        }
       }
     }
 

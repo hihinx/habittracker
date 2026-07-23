@@ -2,4 +2,4 @@
 .wrangler/
 node_modules/
 data/state.json
-lan-config.json
+data/lan-config.json

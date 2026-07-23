@@ -74,7 +74,7 @@ def write_lan_config(ip):
         "port": PORT,
         "canonicalUrl": f"http://{ip}:{PORT}/index.html",
     }
-    (DIR / "lan-config.json").write_text(json.dumps(config, indent=2), encoding="utf-8")
+    (DATA_DIR / "lan-config.json").write_text(json.dumps(config, indent=2), encoding="utf-8")
     return config
 
 
@@ -213,7 +213,7 @@ if __name__ == "__main__":
 
     print()
     print("=" * 52)
-    print("  21天养成游戏 · 局域网服务")
+    print("  伴芽 HabitTracker · 局域网服务")
     print("=" * 52)
     print("  统一访问地址（电脑 + 手机都用这个）：")
     print(f"  {canonical}")

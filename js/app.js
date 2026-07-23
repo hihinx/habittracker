@@ -3,13 +3,21 @@ import {
   companionStageEmoji,
   stageLabel,
   stageIndex,
+  generalStageIndex,
   randomCheer,
   completionText,
   companionKindLabel,
   evolutionStageLabels,
-  hatchVerb,
+  focusWelcomeTitle,
+  focusWelcomeMsg,
+  flexWelcomeTitle,
+  flexWelcomeMsg,
+  flexGrowthEmoji,
+  flexStageLabel,
+  FLEX_GROWTH_STAGES,
+  flexGrowthStageLabels,
   careVerb,
-  randomCompanion,
+  randomPet,
 } from "./plants.js";
 import {
   typeInfo,
@@ -20,6 +28,7 @@ import {
   mulliganLabel,
   yesterdayKey,
   DAILY_TARGET,
+  MAX_FOCUS_PER_TYPE,
 } from "./habit-rules.js";
 
 const ICONS = ["📖", "🏃", "🧘", "💧", "🌅", "✍️", "🎸", "🥗", "😴", "🧹", "💊", "🚶", "🧠", "🎯"];
@@ -90,11 +99,11 @@ function showErrorToast(err) {
 const CONFIRMED_CONFIG = {
   reminderTime: "09:30",
   habits: [
-    { name: "阅读 30 分钟", icon: "📖", inFocus: true, bestStreak: 12, attemptCount: 2, currentDay: 12 },
-    { name: "运动 20 分钟", icon: "🏃", inFocus: true, bestStreak: 7, attemptCount: 1, currentDay: 5 },
+    { name: "阅读 30 分钟", icon: "📖", type: "daily", inFocus: true, bestStreak: 12, attemptCount: 2, currentDay: 12 },
+    { name: "运动 20 分钟", icon: "🏃", type: "daily", inFocus: true, bestStreak: 7, attemptCount: 1, currentDay: 5 },
+    { name: "写代码", icon: "💻", type: "general", inFocus: true, bestStreak: 3, attemptCount: 1, currentDay: 3, goalDays: 30, goalCheckins: 10 },
     { name: "冥想 10 分钟", icon: "🧘", inFocus: false, bestStreak: 14, attemptCount: 3, currentDay: 0 },
     { name: "喝 8 杯水", icon: "💧", inFocus: false, bestStreak: 21, attemptCount: 1, currentDay: 0 },
-    { name: "早起 6:30", icon: "🌅", inFocus: false, bestStreak: 9, attemptCount: 2, currentDay: 0 },
   ],
 };
 
@@ -147,7 +156,7 @@ async function fetchWithTimeout(url, options = {}, ms = FETCH_TIMEOUT_MS) {
 
 async function loadCanonicalUrl() {
   try {
-    const res = await fetchWithTimeout("./lan-config.json", { cache: "no-store" });
+    const res = await fetchWithTimeout("./data/lan-config.json", { cache: "no-store" });
     if (!res.ok) return;
     const cfg = await res.json();
     if (cfg.canonicalUrl) canonicalUrl = cfg.canonicalUrl;
@@ -160,7 +169,7 @@ async function ensureCanonicalUrl() {
   const host = location.hostname;
   if (host !== "127.0.0.1" && host !== "localhost") return true;
   try {
-    const res = await fetchWithTimeout("./lan-config.json", { cache: "no-store" });
+    const res = await fetchWithTimeout("./data/lan-config.json", { cache: "no-store" });
     if (!res.ok) return true;
     const cfg = await res.json();
     if (cfg.canonicalUrl) {
@@ -176,12 +185,26 @@ async function ensureCanonicalUrl() {
   return true;
 }
 
+function siteUrl() {
+  return new URL("/", location.href).href;
+}
+
+async function copySiteUrl() {
+  const url = siteUrl();
+  try {
+    await navigator.clipboard.writeText(url);
+    showToast("链接已复制");
+  } catch {
+    showToast("复制失败，请手动复制");
+  }
+}
+
 function renderHeader() {
   const daily = store.getFocusSessions("daily");
   const general = store.getFocusSessions("general");
   $("#statsBar").innerHTML = `
-    <span class="stat-chip">21D ${daily.length}/3</span>
-    <span class="stat-chip">Gen ${general.length}/3</span>
+    <span class="stat-chip stat-chip-pet">每日伴 ${daily.length}/${MAX_FOCUS_PER_TYPE}</span>
+    <span class="stat-chip stat-chip-plant">随心芽 ${general.length}/${MAX_FOCUS_PER_TYPE}</span>
   `;
 }
 
@@ -210,11 +233,13 @@ function showBootstrapError(err) {
   }
 }
 
-function renderEvolutionRow(companion, streak) {
+function renderEvolutionRow(companion, progressValue, kind = "pet") {
   if (!companion?.stages?.length) return "";
-  const kind = companion.kind || "plant";
   const labels = evolutionStageLabels(kind);
-  const current = stageIndex(streak);
+  const current =
+    kind === "plant" && progressValue?.count != null
+      ? generalStageIndex(progressValue.count, progressValue.goal)
+      : stageIndex(progressValue);
   return companion.stages
     .map(
       (emoji, i) =>
@@ -223,24 +248,23 @@ function renderEvolutionRow(companion, streak) {
     .join("");
 }
 
-function nurtureTaskBridge(companion) {
-  return `帮${companion.name}完成今日成长`;
+function nurtureTaskBridge(companion, isFlex = false) {
+  if (isFlex) return `帮${companion.name}完成今日浇水`;
+  return `完成今日任务，帮${companion.name}成长吧`;
 }
 
 function renderDailyNurtureCard(session) {
   const habit = store.getHabit(session.habitId);
   if (!habit) return "";
-  const companion = session.plant || randomCompanion();
+  const companion = session.plant?.kind === "pet" ? session.plant : randomPet();
   const checked = store.isCheckedInToday(session);
-  const kind = companion?.kind || "plant";
   const p = dailyProgress(session);
   const emoji = companionStageEmoji(companion, p.streak);
   const mullTag = mulliganLabel(session);
   const atRisk = session.atRisk;
-  const themeClass = kind === "pet" ? "companion-pet" : "companion-plant";
 
   const riskBanner = atRisk
-    ? `<div class="at-risk-hint">昨日未打卡 · <button class="link-btn link-btn-muted" data-rescue="${habit.id}">补签挽救</button></div>`
+    ? `<div class="at-risk-hint">昨日未照料 · <button class="link-btn link-btn-muted" data-rescue="${habit.id}">补签挽救</button></div>`
     : "";
 
   const actionBtn = checked
@@ -248,58 +272,64 @@ function renderDailyNurtureCard(session) {
     : `<button class="checkin-btn nurture-checkin" data-checkin="${habit.id}" ${atRisk ? "disabled" : ""}>✓ 完成「${habit.name}」</button>`;
 
   return `
-    <article class="daily-nurture-card ${themeClass} ${checked ? "done-today" : ""}" data-habit="${habit.id}">
+    <article class="daily-nurture-card companion-pet ${checked ? "done-today" : ""}" data-habit="${habit.id}">
       ${riskBanner}
       <div class="nurture-hero">
         <div class="nurture-avatar-large" id="avatar-${habit.id}">${emoji}</div>
         <div class="nurture-companion-name">${companion.name}</div>
-        <div class="nurture-stage">${companionKindLabel(companion)} · ${stageLabel(p.streak, kind)}</div>
+        <div class="nurture-stage">伙伴 · ${stageLabel(p.streak, "pet")}</div>
       </div>
       <div class="nurture-divider"></div>
       <div class="nurture-task-title">${habit.icon} ${habit.name}${mullTag}</div>
       <div class="nurture-task-bridge">${nurtureTaskBridge(companion)}</div>
       <div class="nurture-progress">
         <div class="progress-label"><span>连续 ${p.streak}/${DAILY_TARGET} 天</span><span>${p.pct}%</span></div>
-        <div class="progress-bar"><div class="progress-fill" style="width:${p.pct}%"></div></div>
+        <div class="progress-bar"><div class="progress-fill progress-fill-pet" style="width:${p.pct}%"></div></div>
       </div>
-      <div class="nurture-evolution">${renderEvolutionRow(companion, p.streak)}</div>
+      <div class="nurture-evolution">${renderEvolutionRow(companion, p.streak, "pet")}</div>
       ${actionBtn}
-      <button class="abandon-link" data-abandon="${habit.id}">暂时放弃</button>
+      <button class="abandon-link abandon-link-subtle" data-abandon="${habit.id}" type="button">暂时放弃</button>
     </article>`;
 }
 
-function renderGeneralTaskCard(session) {
+function renderFlexGrowthRow(count, goal) {
+  const current = generalStageIndex(count, goal);
+  const labels = flexGrowthStageLabels();
+  return FLEX_GROWTH_STAGES.map(
+    (emoji, i) =>
+      `<span class="evo-step ${i <= current ? "evo-done" : ""} ${i === current ? "evo-current" : ""}" title="${labels[i]}">${emoji}</span>`
+  ).join("");
+}
+
+function renderFlexSproutCard(session) {
   const habit = store.getHabit(session.habitId);
   if (!habit) return "";
   const checked = store.isCheckedInToday(session);
   const p = generalProgress(session);
+  const emoji = flexGrowthEmoji(p.count, p.goal);
   const mullTag = mulliganLabel(session);
 
+  const actionHtml = checked
+    ? `<div class="flex-sprout-action flex-sprout-done">
+        <span class="flex-done-label">今日已完成</span>
+        <span class="flex-done-habit">${habit.icon} ${habit.name}</span>
+      </div>`
+    : `<div class="flex-sprout-action">
+        <button class="flex-checkin-btn" data-checkin="${habit.id}" type="button">完成打卡</button>
+      </div>`;
+
   return `
-    <article class="general-task-card ${checked ? "done-today" : ""}" data-habit="${habit.id}">
-      <div class="task-card-main">
-        <span class="task-icon" aria-hidden="true">${habit.icon}</span>
-        <div class="task-info">
-          <h2>${typeBadge("general")} ${habit.name}</h2>
-          <div class="task-meta">${p.count}/${p.goal} 次 · 剩 ${p.daysLeft} 天${mullTag}</div>
-          <div class="progress-wrap progress-inline">
-            <div class="progress-bar"><div class="progress-fill" style="width:${p.pct}%"></div></div>
-          </div>
+    <article class="flex-sprout-card ${checked ? "done-today" : ""}" data-habit="${habit.id}">
+      <div class="flex-sprout-main">
+        <div class="flex-sprout-emoji" id="avatar-${habit.id}">${emoji}</div>
+        <div class="flex-sprout-info">
+          <div class="flex-sprout-title">${habit.icon} ${habit.name}${mullTag}</div>
+          <div class="flex-sprout-meta">${flexStageLabel(p.count, p.goal)} · ${p.count}/${p.goal} 次 · 剩 ${p.daysLeft} 天</div>
+          <div class="progress-bar flex-progress-bar"><div class="progress-fill progress-fill-plant" style="width:${p.pct}%"></div></div>
         </div>
-        <div class="task-action">
-          ${checked
-            ? `<span class="checkin-done-compact">✓</span>`
-            : `<button class="checkin-btn checkin-btn-compact" data-checkin="${habit.id}">打卡</button>`}
-        </div>
+        ${actionHtml}
       </div>
-      <div class="progress-wrap progress-full">
-        <div class="progress-label"><span>进度</span><span>${p.pct}%</span></div>
-        <div class="progress-bar"><div class="progress-fill" style="width:${p.pct}%"></div></div>
-      </div>
-      ${checked
-        ? `<div class="checkin-done checkin-done-full">✨ 今日已完成</div>`
-        : `<button class="checkin-btn checkin-btn-full" data-checkin="${habit.id}">今日打卡</button>`}
-      <button class="abandon-link" data-abandon="${habit.id}">暂时放弃</button>
+      <button class="abandon-link abandon-link-subtle" data-abandon="${habit.id}" type="button">暂时放弃</button>
     </article>`;
 }
 
@@ -321,21 +351,21 @@ function renderDailySection() {
       : "";
 
   const emptyHtml =
-    sessions.length === 0 && remaining === 3
-      ? `<div class="empty-slot daily-empty-slot">从习惯池选入 · 随机获得植物或宠物伙伴</div>`
+    sessions.length === 0 && remaining === MAX_FOCUS_PER_TYPE
+      ? `<div class="empty-slot daily-empty-slot">从习惯池选入 · 发愿获得宠物蛋，打卡孵化伙伴</div>`
       : "";
 
-  if (sessions.length === 0 && remaining < 3) {
+  if (sessions.length === 0 && remaining < MAX_FOCUS_PER_TYPE) {
     /* mixed empty + slots handled in carousel */
   }
 
   return `
     <div class="focus-section focus-section-daily">
       <div class="focus-section-head">
-        <h3>21Daily 养成场</h3>
-        <span class="focus-section-count">${sessions.length}/3</span>
+        <h3>每日伴</h3>
+        <span class="focus-section-count">${sessions.length}/${MAX_FOCUS_PER_TYPE}</span>
       </div>
-      ${sessions.length === 0 && remaining === 3 ? emptyHtml : `
+      ${sessions.length === 0 && remaining === MAX_FOCUS_PER_TYPE ? emptyHtml : `
         <div class="daily-carousel" id="dailyCarousel">
           <div class="daily-carousel-track" id="dailyCarouselTrack">${cardsHtml}</div>
           ${dotsHtml}
@@ -349,16 +379,16 @@ function renderGeneralSection() {
 
   let html = `<div class="focus-section focus-section-general">
     <div class="focus-section-head">
-      <h3>General 任务板</h3>
-      <span class="focus-section-count">${sessions.length}/3</span>
+      <h3>随心芽</h3>
+      <span class="focus-section-count">${sessions.length}/${MAX_FOCUS_PER_TYPE}</span>
     </div>`;
 
-  if (sessions.length === 0 && remaining === 3) {
-    html += `<div class="empty-slot empty-slot-sm">从习惯池选入 · 期限内指定次数</div>`;
+  if (sessions.length === 0 && remaining === MAX_FOCUS_PER_TYPE) {
+    html += `<div class="empty-slot empty-slot-sm">从习惯池选入 · 发愿获得种子，按节奏完成目标</div>`;
   }
 
   for (const s of sessions) {
-    html += renderGeneralTaskCard(s);
+    html += renderFlexSproutCard(s);
   }
   for (let i = 0; i < remaining; i++) {
     html += `<div class="empty-slot empty-slot-sm">空坑位</div>`;
@@ -437,19 +467,23 @@ function initDailyCarousel() {
   });
 }
 
-function openHatchModal(session, habit) {
+function openWelcomeModal(session, habit) {
   const companion = session.plant;
   if (!companion) return;
-  const kind = companion.kind || "plant";
-  const verb = hatchVerb(companion);
-  $("#hatchEmoji").textContent = companion.stages[0];
-  $("#hatchTitle").textContent = `${verb}成功！你获得了 ${companion.name}`;
-  $("#hatchMsg").textContent = `连续打卡 21 天，帮它完成进化吧～`;
+  const isFlex = session.type === "general";
+  $("#hatchEmoji").textContent = isFlex ? FLEX_GROWTH_STAGES[0] : companion.stages[0];
+  $("#hatchTitle").textContent = isFlex ? flexWelcomeTitle() : focusWelcomeTitle();
+  $("#hatchMsg").textContent = isFlex
+    ? flexWelcomeMsg(session.goalDays, session.goalCheckins)
+    : focusWelcomeMsg(companion);
   $("#hatchHabit").textContent = `关联习惯：${habit.icon} ${habit.name}`;
-  $("#hatchStages").innerHTML = renderEvolutionRow(companion, 0);
+  $("#hatchStages").innerHTML = isFlex
+    ? renderFlexGrowthRow(0, session.goalCheckins)
+    : renderEvolutionRow(companion, 0, "pet");
+  $("#closeHatch").textContent = isFlex ? "开始打卡" : "开始喂养";
   $("#hatchModal").dataset.habitId = habit.id;
-  $("#hatchModal").classList.toggle("hatch-pet", kind === "pet");
-  $("#hatchModal").classList.toggle("hatch-plant", kind === "plant");
+  $("#hatchModal").classList.toggle("hatch-pet", !isFlex);
+  $("#hatchModal").classList.toggle("hatch-plant", isFlex);
   $("#hatchModal").classList.add("show");
 }
 
@@ -464,6 +498,15 @@ function renderHome() {
   } catch (err) {
     console.error("[habit-tracker] carousel init failed:", err);
   }
+}
+
+function poolAdoptLabel(type) {
+  return type === "general" ? "开始培育" : "开始养成";
+}
+
+function celebrateTitle(session) {
+  if (session.type === "general") return "随心芽 · 完全绽放！";
+  return "每日伴 · 伙伴进化了！";
 }
 
 function poolStatsLine(h) {
@@ -487,33 +530,58 @@ function achievementCompanionEmoji(a) {
   return a.habitIcon || "🏆";
 }
 
-function achievementTitle(a) {
-  if (a.type === "daily" && a.companion) {
-    const kind = a.companion.kind || "plant";
-    const got = kind === "pet" ? "获得了宠物" : "获得了植物";
-    return `${got} · ${a.companion.name}`;
-  }
-  return `${a.type === "general" ? "General" : "21Daily"} · ${a.habitName}`;
+function achievementCompanionSubtitle(a) {
+  if (!a.companion) return "";
+  const kind = a.companion.kind === "pet" ? "伙伴" : "植物";
+  return `${kind} · ${a.companion.name}`;
 }
 
-function achievementSummary(a) {
+function achievementDetailLine(a) {
   const mull = a.mulliganUsed > 0 ? `（补签×${a.mulliganUsed}）` : "";
   if (a.type === "general") {
     const days = a.goalDays != null ? a.goalDays : 30;
     const count = a.checkIns != null ? a.checkIns : a.goalCheckins != null ? a.goalCheckins : 0;
-    return `${days}天内成功打卡${count}次${a.habitName}${mull}`;
+    return `${days} 天内成功完成 ${count} 次${mull}`;
   }
   const streak = a.streak != null ? a.streak : DAILY_TARGET;
-  return `${streak}天连续${a.habitName}${mull}`;
+  return `连续 ${streak} 天${mull}`;
+}
+
+function achievementTitle(a) {
+  return `${a.habitIcon || ""} ${a.habitName}`.trim();
+}
+
+function renderHonorMedal(a) {
+  const type = a.type || "daily";
+  const hasCompanion = Boolean(a.companion);
+  const sealEmoji = hasCompanion ? achievementCompanionEmoji(a) : a.habitIcon || "🏆";
+  const companionLine = achievementCompanionSubtitle(a);
+
+  return `
+    <article class="honor-medal honor-medal-${type}${hasCompanion ? " has-companion" : ""}">
+      <div class="honor-medal-seal" aria-hidden="true">${sealEmoji}</div>
+      <div class="honor-medal-body">
+        <div class="honor-medal-task">${achievementTitle(a)}</div>
+        ${companionLine ? `<div class="honor-medal-reward">${companionLine}</div>` : ""}
+        <div class="honor-medal-stat">${achievementDetailLine(a)}</div>
+        <time class="honor-medal-date">${formatAchievementDate(a.completedAt)}</time>
+      </div>
+    </article>`;
+}
+
+function achievementSummary(a) {
+  return achievementDetailLine(a);
 }
 
 function completionCelebrateMsg(habit, session) {
   const companion = session.plant;
   if (session.type === "daily" && companion) {
     const finalEmoji = companion.stages[companion.stages.length - 1];
-    const kind = companion.kind || "plant";
-    const got = kind === "pet" ? "宠物伙伴" : "植物伙伴";
-    return `${finalEmoji} ${companion.name} ${completionText(companion)}！${got}已收录进荣誉榜 · +1 补签 · 「${habit.name}」可随时再挑战`;
+    return `${finalEmoji} ${companion.name} ${completionText(companion)}！已入住伙伴窝 · +1 补签 · 「${habit.name}」可随时再挑战`;
+  }
+  if (session.type === "general" && companion) {
+    const finalEmoji = companion.stages[companion.stages.length - 1];
+    return `${finalEmoji} ${companion.name} ${completionText(companion)}！已收录植物图鉴 · +1 补签 · 「${habit.name}」可随时再挑战`;
   }
   return `「${habit.name}」目标达成！已记入荣誉榜 · +1 补签 · 可随时再挑战`;
 }
@@ -539,25 +607,20 @@ function renderPool() {
         </div>
         <div class="pool-actions">
           <button class="btn btn-ghost" data-edit="${h.id}">编辑</button>
-          <button class="btn btn-primary${slotsLeft === 0 ? " adopt-blocked" : ""}" data-adopt="${h.id}" ${slotsLeft === 0 ? 'data-slots-full="1"' : ""}>选入聚焦</button>
+          <button class="btn btn-primary${slotsLeft === 0 ? " adopt-blocked" : ""}" data-adopt="${h.id}" ${slotsLeft === 0 ? 'data-slots-full="1"' : ""}>${poolAdoptLabel(type)}</button>
         </div>
       </div>`;
   }
 
   html += `<div class="section-title">🏆 荣誉榜${achievements.length ? ` · ${achievements.length} 项` : ""}</div>`;
   if (achievements.length === 0) {
-    html += `<div class="empty-slot" style="padding:20px">完成挑战后，成就会出现在这里</div>`;
-  }
-  for (const a of achievements) {
-    const isDailyCompanion = a.type === "daily" && a.companion;
-    html += `
-      <div class="honor-item ${isDailyCompanion ? "honor-companion" : ""}">
-        <span class="pool-icon honor-avatar">${isDailyCompanion ? achievementCompanionEmoji(a) : a.habitIcon || "🏆"}</span>
-        <div class="pool-body">
-          <strong>${isDailyCompanion ? achievementTitle(a) : `${typeBadge(a.type || "daily")} ${a.habitName}`}</strong>
-          <small>${formatAchievementDate(a.completedAt)} · ${achievementSummary(a)}</small>
-        </div>
-      </div>`;
+    html += `<div class="empty-slot honor-empty">完成挑战后，勋章会陈列在这里</div>`;
+  } else {
+    html += `<div class="honor-wall">`;
+    for (const a of achievements) {
+      html += renderHonorMedal(a);
+    }
+    html += `</div>`;
   }
 
   $("#tabContent").innerHTML = html;
@@ -594,6 +657,12 @@ function renderSettings() {
   }
 
   $("#tabContent").innerHTML = `
+    <div class="sync-notice site-url-notice">
+      <strong>访问地址</strong>
+      <p class="site-url-row"><code id="siteUrlText">${siteUrl()}</code></p>
+      <button class="btn" type="button" id="copySiteUrl">复制链接</button>
+      <p class="site-url-hint">手机、电脑请使用同一链接打开，数据会自动同步。</p>
+    </div>
     <div class="sync-notice">
       <strong>${store.isSyncEnabled() ? "☁️ 云端自动同步已开启" : "⚠️ 离线模式（仅本机）"}</strong>
       <p>${store.isSyncEnabled()
@@ -647,28 +716,28 @@ function processPendingEvents() {
   for (const ev of events) {
     if (ev.kind === "at_risk") {
       pendingRescueHabitId = ev.habit.id;
-      $("#rescueMsg").textContent = `「${ev.habit.name}」昨日未打卡。使用 1 次补签机会可继续挑战，否则下次打开将失效。`;
+      $("#rescueMsg").textContent = `「${ev.habit.name}」昨日未照料。使用 1 次补签机会可继续挑战，否则下次打开将失效。`;
       $("#rescueModal").classList.add("show");
       break;
     }
     if (ev.kind === "failed") {
+      const isFlex = ev.session?.type === "general";
       const reason =
         ev.reason === "missed_day"
-          ? "昨日未打卡，连续挑战中断"
-          : "目标期限内未达成打卡次数";
-      $("#failTitle").textContent = "挑战失效";
+          ? "昨日未照料，连续挑战中断"
+          : "种子未能发芽，期限内未达成目标次数";
+      $("#failTitle").textContent = isFlex ? "种子未能发芽" : "挑战失效";
       $("#failMsg").textContent = `「${ev.habit.name}」${reason}，已回到习惯池。`;
       $("#failModal").classList.add("show");
     }
     if (ev.kind === "completed") {
       const session = ev.session;
-      if (session.type === "daily" && session.plant) {
+      if (session.plant) {
         $("#celebrateEmoji").textContent = session.plant.stages[session.plant.stages.length - 1];
       } else {
         $("#celebrateEmoji").textContent = "🏆";
       }
-      $("#celebrateTitle").textContent =
-        ev.session.type === "daily" ? "21Daily 养成成功！" : "General 目标达成！";
+      $("#celebrateTitle").textContent = celebrateTitle(session);
       $("#celebrateMsg").textContent = completionCelebrateMsg(ev.habit, ev.session);
       $("#celebrateModal").classList.add("show");
     }
@@ -683,28 +752,34 @@ function handleCheckIn(habitId) {
 
     if (result.completed) {
       const { habit, session } = result;
-      if (session.type === "daily" && session.plant) {
+      if (session.plant) {
         $("#celebrateEmoji").textContent = session.plant.stages[session.plant.stages.length - 1];
       } else {
         $("#celebrateEmoji").textContent = "🏆";
       }
-      $("#celebrateTitle").textContent =
-        session.type === "daily" ? "21Daily 养成成功！" : "General 目标达成！";
+      $("#celebrateTitle").textContent = celebrateTitle(session);
       $("#celebrateMsg").textContent = completionCelebrateMsg(habit, session);
       $("#celebrateModal").classList.add("show");
     } else {
       const session = result.session;
-      if (session.type === "daily" && session.plant) {
-        $("#celebrateEmoji").textContent = companionStageEmoji(
-          session.plant,
-          stageDayForCompanion(session)
-        );
-        $("#celebrateTitle").textContent = `${careVerb(session.plant)}成功！`;
+      if (session.plant) {
+        if (session.type === "general") {
+          const p = generalProgress(session);
+          $("#celebrateEmoji").textContent = flexGrowthEmoji(p.count, p.goal);
+          $("#celebrateTitle").textContent = "浇水成功！";
+        } else {
+          $("#celebrateEmoji").textContent = companionStageEmoji(
+            session.plant,
+            stageDayForCompanion(session)
+          );
+          $("#celebrateTitle").textContent = `${careVerb(session.plant)}成功！`;
+        }
+        $("#celebrateMsg").textContent = randomCheer(session.type === "general");
       } else {
         $("#celebrateEmoji").textContent = store.getHabit(habitId)?.icon || "✓";
         $("#celebrateTitle").textContent = "打卡成功！";
+        $("#celebrateMsg").textContent = randomCheer();
       }
-      $("#celebrateMsg").textContent = randomCheer();
       $("#celebrateModal").classList.add("show");
     }
     render();
@@ -725,10 +800,10 @@ function handleAdopt(habitId) {
     activeTab = "home";
     $$(".tab-btn").forEach((b) => b.classList.toggle("active", b.dataset.tab === "home"));
     render();
-    if ((habit.type || "daily") === "daily" && session.plant) {
-      openHatchModal(session, habit);
+    if (session.plant) {
+      openWelcomeModal(session, habit);
     } else {
-      showToast(`「${habit.name}」已选入${typeToastLabel(habit.type)}聚焦`);
+      showToast(`「${habit.name}」已选入${typeToastLabel(habit.type)}`);
     }
   } catch (e) {
     showErrorToast(e);
@@ -901,12 +976,13 @@ function bindTabContentEvents() {
 
   root.addEventListener("click", (e) => {
     const target = e.target.closest(
-      "[data-checkin], [data-abandon], [data-adopt], [data-edit], [data-mulligan], [data-rescue], #saveReminder, #exportData, #importDataBtn, #confirmImport"
+      "[data-checkin], [data-abandon], [data-adopt], [data-edit], [data-mulligan], [data-rescue], #saveReminder, #exportData, #importDataBtn, #confirmImport, #copySiteUrl"
     );
     if (!target) return;
     if (!root.contains(target) && !target.closest("#tabContent")) return;
 
     if (target.id === "exportData") return exportData();
+    if (target.id === "copySiteUrl") return copySiteUrl();
     if (target.id === "importDataBtn") {
       $("#importArea").hidden = !$("#importArea").hidden;
       return;
@@ -1007,6 +1083,7 @@ function startSyncLoop() {
   const tick = async () => {
     if (document.visibilityState !== "visible") return;
     try {
+      if (!store.isSyncEnabled()) await store.ensureSync();
       if (await store.syncFromServer()) render();
       store.evaluateSessions(true);
       processPendingEvents();
@@ -1022,9 +1099,15 @@ function startSyncLoop() {
 }
 
 async function bootstrap() {
+  window.__habitBootStarted = true;
   try {
     await store.init();
-    store.seedFromConfig(CONFIRMED_CONFIG);
+    if (
+      (location.hostname === "127.0.0.1" || location.hostname === "localhost") &&
+      store.getHabits().length === 0
+    ) {
+      store.seedFromConfig(CONFIRMED_CONFIG);
+    }
     store.evaluateSessions(true);
     bindTabContentEvents();
     bindStaticEvents();
@@ -1033,6 +1116,7 @@ async function bootstrap() {
     appReady = true;
     window.__habitAppReady = true;
     startSyncLoop();
+    void purgeStaleCaches();
   } catch (err) {
     showBootstrapError(err);
   } finally {
@@ -1041,22 +1125,26 @@ async function bootstrap() {
 }
 
 function initApp() {
-  let started = false;
-  const boot = () => {
-    if (started) return;
-    started = true;
-    bootstrap();
-  };
+  const host = location.hostname;
+  const boot = () => bootstrap();
 
-  Promise.race([ensureCanonicalUrl(), new Promise((resolve) => setTimeout(() => resolve(true), 2500))])
-    .then((ok) => {
-      if (!ok) return;
-      boot();
+  if (host === "127.0.0.1" || host === "localhost") {
+    ensureCanonicalUrl().then((ok) => {
+      if (ok) boot();
       loadCanonicalUrl();
-      purgeStaleCaches();
-    })
-    .catch(boot);
+    });
+    return;
+  }
+
+  boot();
+  loadCanonicalUrl();
 }
+
+window.addEventListener("habit-store-synced", () => {
+  if (!appReady) return;
+  render();
+  processPendingEvents();
+});
 
 window.addEventListener("pageshow", (e) => {
   if (e.persisted && appReady) {
